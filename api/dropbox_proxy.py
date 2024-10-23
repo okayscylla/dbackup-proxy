@@ -22,8 +22,6 @@ def get_auth_url():
         
         return jsonify({"auth_url": auth_url}), 200
         
-    except dropbox.oauth.NotApprovedException:
-        return jsonify({"error": "Not approved"}), 403
     except Exception as _:
         return jsonify({"error": "Internal server error"}), 500
 
