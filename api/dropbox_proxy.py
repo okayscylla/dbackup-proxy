@@ -10,6 +10,7 @@ def create_flow():
     return DropboxOAuth2FlowNoRedirect(
             os.getenv("DBX_KEY"),
             os.getenv("DBX_SECRET"),
+            token_access_type="legacy"
         )
 
 
