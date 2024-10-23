@@ -1,0 +1,9 @@
+{
+    "builds": [
+      { "src": "api/dropbox_proxy.py", "use": "@vercel/python" }
+    ],
+    "routes": [
+      { "src": "/api/(.*)", "dest": "api/dropbox_proxy.py" }
+    ]
+  }
+  
