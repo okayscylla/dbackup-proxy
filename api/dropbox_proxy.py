@@ -166,7 +166,7 @@ def get_access_token_api():
         return jsonify({"error": "Internal server error"}), 500
 
 
-@app.route("/api/get-auth-url", methods=["POST"])
+@app.route("/api/get-auth-url", methods=["GET"])
 def get_auth_url_api():
     try:
         oauth_flow = create_flow()
