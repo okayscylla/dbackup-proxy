@@ -20,7 +20,7 @@ redis_handle = redis.Redis(
 )
 
 def get_expiration():
-    return datetime.datetime.utcnow() + datetime.timedelta(days=30)
+    return str(datetime.datetime.now(datetime.UTC) + datetime.timedelta(days=30))
 
 def create_flow():
     return DropboxOAuth2FlowNoRedirect(
