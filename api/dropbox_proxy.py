@@ -1,40 +1,43 @@
-import os
 from flask import Flask, request, jsonify
-import dropbox
-from dropbox import DropboxOAuth2FlowNoRedirect
-# import logging
-
-# log_level = 'INFO'
-# logger = logging.getLogger()
-# logger.setLevel(log_level)
-
-# console_handler = logging.StreamHandler()
-# console_handler.setLevel(log_level)
-# logger.addHandler(console_handler)
+import utils
+import uuid
 
 app = Flask(__name__)
 
 
-def create_flow():
-    return DropboxOAuth2FlowNoRedirect(
-            os.getenv("DBX_KEY"),
-            os.getenv("DBX_SECRET"),
-            token_access_type="legacy"
-        )
+@app.route("/api/refresh-token", methods=["POST"])
+def refresh_token():
+    auth_header = request.headers.get("Authorization")
 
+    if not auth_header:
+        return jsonify({"error": "No authorization header"}), 401
 
-@app.route("/api/get-auth-url", methods=["GET"])
-def get_auth_url():
+    access_token = auth_header.split(" ")[1]
+    payload = utils.verify_jwt_token(access_token)
+
+    if not payload:
+        return jsonify({"error": "Invalid access token"}), 401
+    
+    user_id = payload["user_id"]
+    tokens = utils.access_token(user_id)
+    
+    if not tokens or not tokens["refresh_token"]:
+        return jsonify({"error": "No refresh token"}), 401
+    
     try:
-        oauth_flow = create_flow()
+        new_access_token, new_refresh_token = utils.refresh_token(tokens["refresh_token"])
         
-        auth_url = oauth_flow.start()
+        expiration = utils.get_expiration()
+        utils.store_token(user_id, new_access_token, new_refresh_token, expiration)
         
-        return jsonify({"auth_url": auth_url}), 200
+        return jsonify(
+            {"access_token": new_access_token},
+            {"refresh_token": new_refresh_token}
+        ), 200
         
     except Exception as e:
-        print(f"Error in api/get_auth_url: {e}")
-        return jsonify({"error": "Internal server error"}), 500
+        print(f"Error in refresh_token: {e}")
+        return jsonify({"error": "Failed to refresh token"}), 500
 
 
 @app.route("/api/get-access-token", methods=["POST"])
@@ -44,23 +47,33 @@ def get_access_token():
         if not data or "auth_code" not in data:
             return jsonify({"error": "Invalid request"}), 400
         
+        user_id = uuid.uuid4()
         auth_code = data["auth_code"]
+        access_token, refresh_token = utils.get_token(auth_code)
         
-        oauth_flow = create_flow()
+        expiration = utils.get_expiration()
+        utils.store_token(user_id, access_token, refresh_token, expiration)
         
-        oauth_result = oauth_flow.finish(auth_code)
-        
-        return jsonify({
-            "access_token": oauth_result.access_token
-        })
-    
-    except dropbox.oauth.NotApprovedException:
-        return jsonify({"error": "Not approved"}), 403
-    
-    except dropbox.oauth.ProviderException as e:
-        print(f"ProviderException in api/get_access_token: {e}")
-        return jsonify({"error": "An unexpected error occured"}), 500
-    
+        return jsonify(
+            {"access_token": access_token},
+            {"refresh_token": refresh_token},
+            {"user_id": user_id}
+            ), 200
     except Exception as e:
-        print(f"Error in api/get_access_token: {e}")
+        print(f"Error in get_access_token: {e}")
         return jsonify({"error": "Internal server error"}), 500
+
+
+@app.route("/api/get-auth-url", methods=["POST"])
+def get_auth_url():
+    try:
+        oauth_flow = utils.create_flow()
+        auth_url = oauth_flow.start()
+        return jsonify({"auth_url": auth_url}), 200
+    except Exception as e:
+        print(f"Error in get_auth_url: {e}")
+        return jsonify({"error": "Internal server error"}), 500
+
+
+if __name__ == "__main__":
+    app.run(debug=True)
