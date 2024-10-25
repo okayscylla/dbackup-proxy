@@ -114,12 +114,12 @@ def refresh_token_api():
     if not auth_header:
         return jsonify({"error": "No authorization header"}), 401
     
-    auth_header = auth_header.split(" ")
+    split_auth_header = auth_header.split(" ")
     
-    if len(auth_header) < 2:
+    if len(split_auth_header) < 2:
         return jsonify({"error": "Invalid authorization header"}), 401
     
-    access_token = access_token[1]
+    access_token = split_auth_header[1]
 
     payload = verify_jwt_token(access_token)
 
