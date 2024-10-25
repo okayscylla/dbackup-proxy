@@ -3,4 +3,3 @@ requests
 dropbox
 PyJWT
 redis
-requests
